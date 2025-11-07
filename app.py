@@ -1,15 +1,14 @@
-
 import streamlit as st
 import pandas as pd
 import random
-from openai import OpenAI
+import openai
 
 # -------------------- CONFIG --------------------
 st.set_page_config(page_title="Tribal Bazaar", page_icon="🪶", layout="wide")
 
 # -------------------- OPENAI SETUP --------------------
-# Store your API key in Streamlit secrets for security
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# Use Streamlit Secrets or environment variable for your API key
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # -------------------- DATA STORAGE --------------------
 if "products" not in st.session_state:
@@ -25,12 +24,11 @@ def generate_ai_description(name, category, keywords):
         f"named '{name}' in the '{category}' category. Mention its cultural value "
         f"and features like {keywords}."
     )
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.choices[0].message.content.strip()
-
+    return response.choices[0].message["content"].strip()
 
 def generate_ai_image(category):
     """Generate AI image using OpenAI image model"""
@@ -38,12 +36,12 @@ def generate_ai_image(category):
         f"A realistic, high-quality photo of an Indian tribal artisan-made {category}, "
         "detailed, vibrant, with natural lighting."
     )
-    ai_image = client.images.generate(
+    image = openai.Image.create(
         model="gpt-image-1",
         prompt=prompt,
         size="512x512"
     )
-    return ai_image.data[0].url
+    return image["data"][0]["url"]
 
 # -------------------- HEADER --------------------
 st.title("🪶 Tribal Bazaar")
