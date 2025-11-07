@@ -9,14 +9,7 @@ st.set_page_config(page_title="Tribal Bazaar", page_icon="🪶", layout="wide")
 # -------------------- OPENAI SETUP --------------------
 openai_client = OpenAI(api_key="your_openai_api_key")  # replace with your API key
 
-# -------------------- DATA STORAGE --------------------
-if "products" not in st.session_state:
-    st.session_state.products = pd.DataFrame(columns=["Name", "Category", "Price", "Description", "Image", "Popularity"])
-
-# -------------------- AI HELPERS --------------------
-def generate_ai_description(name, category, keywords):
-    """Generate creative AI-based description for a product"""
-    prompt = f"Write a short 3-line creative description for a handmade tribal product named '{name}' in the '{category}' category. Mention its cultural value and features like {keywords}."
+# -------------------- DATA STORAGE --------------------ompt = f"Write a short 3-line creative description for a handmade tribal product named '{name}' in the '{category}' category. Mention its cultural value and features like {keywords}."
     response = openai_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
