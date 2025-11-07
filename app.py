@@ -1,168 +1,97 @@
 import streamlit as st
 import pandas as pd
-import random
 import openai
+import requests
 
-# -------------------- CONFIG --------------------
+# ---------------------------
+# SETUP
+# ---------------------------
 st.set_page_config(page_title="Tribal Bazaar", page_icon="🪶", layout="wide")
 
-# -------------------- OPENAI SETUP --------------------
-# Use Streamlit Secrets or environment variable for your API key
+# Load API key from secrets (safer)
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# -------------------- DATA STORAGE --------------------
-if "products" not in st.session_state:
-    st.session_state.products = pd.DataFrame(columns=[
-        "Name", "Category", "Price", "Description", "Image", "Popularity"
-    ])
+# ---------------------------
+# AI HELPERS
+# ---------------------------
 
-# -------------------- AI HELPERS --------------------
 def generate_ai_description(name, category, keywords):
-    """Generate creative AI-based description for a product"""
-    prompt = (
-        f"Write a short 3-line creative description for a handmade tribal product "
-        f"named '{name}' in the '{category}' category. Mention its cultural value "
-        f"and features like {keywords}."
-    )
+    """Generate a creative AI description for the product"""
+    prompt = f"Write a short 3-line creative description for a handmade tribal product named '{name}' in the '{category}' category. Mention its cultural value and features like {keywords}."
+    
     response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message["content"].strip()
 
+
 def generate_ai_image(category):
-    """Generate AI image using OpenAI image model"""
-    prompt = (
-        f"A realistic, high-quality photo of an Indian tribal artisan-made {category}, "
-        "detailed, vibrant, with natural lighting."
-    )
+    """Generate a product image using OpenAI's image model"""
+    prompt = f"A realistic high-quality photo of an Indian tribal artisan-made {category}, detailed and vibrant."
     image = openai.Image.create(
-        model="gpt-image-1",
         prompt=prompt,
+        model="gpt-image-1",
         size="512x512"
     )
     return image["data"][0]["url"]
 
-# -------------------- HEADER --------------------
-st.title("🪶 Tribal Bazaar")
-st.subheader("Empowering Tribal Communities through Digital Commerce")
+# ---------------------------
+# STREAMLIT APP
+# ---------------------------
 
-menu = st.sidebar.radio(
-    "Navigation",
-    ["🏠 Home", "🛍️ Products", "➕ Add Product", "📈 Trending", "💡 AI Helper"]
-)
+st.title("🪶 Tribal Bazaar – Empowering Indigenous Artisans")
+st.write("Support tribal artisans by exploring unique handmade products infused with culture and heritage.")
 
-# -------------------- HOME --------------------
-if menu == "🏠 Home":
-    st.image(
-        "https://images.unsplash.com/photo-1606152534829-6f8a7bffb403",
-        use_container_width=True
-    )
-    st.markdown("""
-    ### 🌿 Our Mission  
-    Empowering tribal artisans to reach a global audience by showcasing their handmade crafts.  
-    Supporting sustainability, culture, and livelihoods through technology.  
-    """)
+# Initialize product list
+if "products" not in st.session_state:
+    st.session_state["products"] = []
 
-# -------------------- ADD PRODUCT --------------------
-elif menu == "➕ Add Product":
-    st.header("🪴 Add a New Tribal Product")
+# Product upload section
+st.subheader("🧺 Add New Tribal Product")
 
-    with st.form("add_product_form"):
-        name = st.text_input("Product Name")
-        category = st.selectbox(
-            "Category", ["Handicraft", "Jewelry", "Textiles", "Art", "Food", "Other"]
-        )
-        price = st.number_input("Price (₹)", min_value=10)
-        keywords = st.text_input("Keywords (e.g., eco-friendly, bamboo, handmade)")
-        image_url = st.text_input("Image URL (optional)")
-        auto_desc = st.checkbox("✨ Generate AI Description")
-        auto_image = st.checkbox("🎨 Generate AI Image")
-        submit = st.form_submit_button("Add Product")
+with st.form("add_product"):
+    name = st.text_input("Product Name")
+    category = st.selectbox("Category", ["Handicraft", "Jewelry", "Textile", "Home Decor", "Art", "Other"])
+    price = st.number_input("Price (₹)", min_value=50, step=10)
+    keywords = st.text_input("Product Features / Keywords")
+    submit = st.form_submit_button("✨ Add Product")
 
     if submit and name:
-        if auto_desc:
-            with st.spinner("Generating AI description..."):
-                desc = generate_ai_description(name, category, keywords)
-        else:
-            desc = st.text_area("Enter Description")
-
-        if not image_url and auto_image:
-            with st.spinner("Generating AI image..."):
-                image_url = generate_ai_image(category)
-        elif not image_url:
-            image_url = "https://via.placeholder.com/150"
-
-        new_product = pd.DataFrame({
-            "Name": [name],
-            "Category": [category],
-            "Price": [price],
-            "Description": [desc],
-            "Image": [image_url],
-            "Popularity": [random.randint(10, 100)]
+        with st.spinner("Generating AI description and image..."):
+            description = generate_ai_description(name, category, keywords)
+            image_url = generate_ai_image(category)
+        st.session_state["products"].append({
+            "name": name,
+            "category": category,
+            "price": price,
+            "description": description,
+            "image": image_url
         })
+        st.success(f"Product '{name}' added successfully!")
 
-        st.session_state.products = pd.concat(
-            [st.session_state.products, new_product], ignore_index=True
-        )
-        st.success(f"✅ '{name}' added successfully!")
+# ---------------------------
+# Display Marketplace
+# ---------------------------
+st.subheader("🛍️ Tribal Marketplace")
 
-# -------------------- PRODUCTS --------------------
-elif menu == "🛍️ Products":
-    st.header("🧺 Browse Tribal Products")
+if st.session_state["products"]:
+    for product in st.session_state["products"]:
+        with st.container():
+            cols = st.columns([1, 2])
+            with cols[0]:
+                st.image(product["image"], use_container_width=True)
+            with cols[1]:
+                st.markdown(f"### {product['name']}")
+                st.markdown(f"**Category:** {product['category']}")
+                st.markdown(f"**Price:** ₹{product['price']}")
+                st.markdown(product["description"])
+                st.button("❤️ Support Artisan", key=product["name"])
+else:
+    st.info("No products yet. Add one above to get started!")
 
-    df = st.session_state.products
-    if df.empty:
-        st.warning("No products added yet! Add one from ➕ Add Product.")
-    else:
-        search = st.text_input("🔍 Search products by name or category")
-        if search:
-            df = df[
-                df["Name"].str.contains(search, case=False)
-                | df["Category"].str.contains(search, case=False)
-            ]
-
-        for _, p in df.iterrows():
-            with st.container():
-                cols = st.columns([1, 3])
-                with cols[0]:
-                    st.image(p["Image"], width=180)
-                with cols[1]:
-                    st.subheader(p["Name"])
-                    st.write(f"**Category:** {p['Category']}")
-                    st.write(f"💰 Price: ₹{p['Price']}")
-                    st.caption(p["Description"])
-                    st.progress(p["Popularity"] / 100)
-
-# -------------------- TRENDING --------------------
-elif menu == "📈 Trending":
-    st.header("🔥 Trending Products")
-    df = st.session_state.products
-    if df.empty:
-        st.info("No products yet.")
-    else:
-        trending = df.sort_values(by="Popularity", ascending=False).head(5)
-        for _, p in trending.iterrows():
-            st.markdown(f"### {p['Name']} — ₹{p['Price']}")
-            st.image(p["Image"], width=250)
-            st.caption(p["Description"])
-            st.progress(p["Popularity"] / 100)
-
-# -------------------- AI HELPER --------------------
-elif menu == "💡 AI Helper":
-    st.header("🤖 AI Product Description Generator")
-
-    product_name = st.text_input("Enter Product Name")
-    category = st.selectbox(
-        "Select Category", ["Handicraft", "Jewelry", "Textiles", "Art", "Food", "Other"]
-    )
-    keywords = st.text_input("Enter Keywords (eco-friendly, tribal art, etc.)")
-
-    if st.button("✨ Generate Description"):
-        if product_name:
-            with st.spinner("Generating..."):
-                desc = generate_ai_description(product_name, category, keywords)
-            st.success("Here's your AI-generated product description:")
-            st.write(desc)
-        else:
-            st.warning("Please enter a product name first.")
+# ---------------------------
+# Footer
+# ---------------------------
+st.markdown("---")
+st.markdown("💡 *Built with Streamlit + OpenAI to promote tribal entrepreneurship.*")
